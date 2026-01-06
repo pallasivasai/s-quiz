@@ -6,13 +6,12 @@ import { Trophy, ArrowLeft, Clock, Target, Medal } from 'lucide-react';
 
 interface LeaderboardEntry {
   id: string;
+  user_id: string;
   score: number;
   total_questions: number;
   time_taken_seconds: number;
   completed_at: string;
-  profiles: {
-    username: string;
-  } | null;
+  username?: string;
 }
 
 interface LeaderboardProps {
@@ -25,23 +24,33 @@ export default function Leaderboard({ onBack }: LeaderboardProps) {
 
   useEffect(() => {
     const fetchLeaderboard = async () => {
-      const { data, error } = await supabase
+      // Fetch scores
+      const { data: scores, error: scoresError } = await supabase
         .from('quiz_scores')
-        .select(`
-          id,
-          score,
-          total_questions,
-          time_taken_seconds,
-          completed_at,
-          profiles!quiz_scores_user_id_fkey (username)
-        `)
+        .select('*')
         .order('score', { ascending: false })
         .order('time_taken_seconds', { ascending: true })
         .limit(20);
 
-      if (!error && data) {
-        setEntries(data as unknown as LeaderboardEntry[]);
+      if (scoresError || !scores) {
+        setLoading(false);
+        return;
       }
+
+      // Fetch profiles for usernames
+      const userIds = scores.map(s => s.user_id);
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('user_id, username')
+        .in('user_id', userIds);
+
+      // Map usernames to scores
+      const entriesWithUsernames = scores.map(score => ({
+        ...score,
+        username: profiles?.find(p => p.user_id === score.user_id)?.username || 'Anonymous'
+      }));
+
+      setEntries(entriesWithUsernames);
       setLoading(false);
     };
 
@@ -120,7 +129,7 @@ export default function Leaderboard({ onBack }: LeaderboardProps) {
                     {/* Username */}
                     <div className="flex-1">
                       <p className="text-white font-semibold">
-                        {entry.profiles?.username || 'Anonymous'}
+                        {entry.username}
                       </p>
                       <p className="text-xs text-slate-500">
                         {new Date(entry.completed_at).toLocaleDateString()}
