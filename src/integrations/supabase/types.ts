@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      certificates: {
+        Row: {
+          certificate_id: string
+          difficulty: string
+          id: string
+          issued_at: string
+          percentage: number
+          score: number
+          total_questions: number
+          user_id: string
+          username: string
+        }
+        Insert: {
+          certificate_id: string
+          difficulty?: string
+          id?: string
+          issued_at?: string
+          percentage: number
+          score: number
+          total_questions: number
+          user_id: string
+          username: string
+        }
+        Update: {
+          certificate_id?: string
+          difficulty?: string
+          id?: string
+          issued_at?: string
+          percentage?: number
+          score?: number
+          total_questions?: number
+          user_id?: string
+          username?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
