@@ -6,11 +6,13 @@ import QuizScreen from "@/components/quiz/QuizScreen";
 import QuizResult from "@/components/quiz/QuizResult";
 
 type QuizState = "home" | "quiz" | "result";
+type Difficulty = 'easy' | 'medium' | 'hard';
 
 interface QuizResultData {
   score: number;
   totalQuestions: number;
   timeTaken: number;
+  difficulty: Difficulty;
 }
 
 const Index = () => {
@@ -18,6 +20,7 @@ const Index = () => {
   const navigate = useNavigate();
   const [quizState, setQuizState] = useState<QuizState>("home");
   const [resultData, setResultData] = useState<QuizResultData | null>(null);
+  const [selectedDifficulty, setSelectedDifficulty] = useState<Difficulty>('medium');
 
   useEffect(() => {
     if (!loading && !user) {
@@ -37,12 +40,13 @@ const Index = () => {
     return null;
   }
 
-  const handleStartQuiz = () => {
+  const handleStartQuiz = (difficulty: Difficulty) => {
+    setSelectedDifficulty(difficulty);
     setQuizState("quiz");
   };
 
-  const handleQuizComplete = (score: number, totalQuestions: number, timeTaken: number) => {
-    setResultData({ score, totalQuestions, timeTaken });
+  const handleQuizComplete = (score: number, totalQuestions: number, timeTaken: number, difficulty: Difficulty) => {
+    setResultData({ score, totalQuestions, timeTaken, difficulty });
     setQuizState("result");
   };
 
@@ -62,13 +66,18 @@ const Index = () => {
         <QuizHome onStartQuiz={handleStartQuiz} />
       )}
       {quizState === "quiz" && (
-        <QuizScreen onComplete={handleQuizComplete} onExit={handleBackToHome} />
+        <QuizScreen 
+          difficulty={selectedDifficulty}
+          onComplete={handleQuizComplete} 
+          onExit={handleBackToHome} 
+        />
       )}
       {quizState === "result" && resultData && (
         <QuizResult
           score={resultData.score}
           totalQuestions={resultData.totalQuestions}
           timeTaken={resultData.timeTaken}
+          difficulty={resultData.difficulty}
           onHome={handleBackToHome}
           onRetry={handleRetry}
         />

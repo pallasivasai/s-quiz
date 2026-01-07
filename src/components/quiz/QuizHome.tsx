@@ -3,17 +3,20 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Shield, Play, Trophy, LogOut, User } from 'lucide-react';
+import { Shield, Play, Trophy, LogOut, User, Zap, Flame, Skull } from 'lucide-react';
 import Leaderboard from './Leaderboard';
 
+type Difficulty = 'easy' | 'medium' | 'hard';
+
 interface QuizHomeProps {
-  onStartQuiz: () => void;
+  onStartQuiz: (difficulty: Difficulty) => void;
 }
 
 export default function QuizHome({ onStartQuiz }: QuizHomeProps) {
   const { user, signOut } = useAuth();
   const [username, setUsername] = useState<string>('');
   const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [selectedDifficulty, setSelectedDifficulty] = useState<Difficulty>('medium');
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -22,7 +25,7 @@ export default function QuizHome({ onStartQuiz }: QuizHomeProps) {
           .from('profiles')
           .select('username')
           .eq('user_id', user.id)
-          .single();
+          .maybeSingle();
         
         if (data) {
           setUsername(data.username);
@@ -35,6 +38,12 @@ export default function QuizHome({ onStartQuiz }: QuizHomeProps) {
   if (showLeaderboard) {
     return <Leaderboard onBack={() => setShowLeaderboard(false)} />;
   }
+
+  const difficultyOptions = [
+    { value: 'easy' as Difficulty, label: 'Easy', icon: Zap, color: 'from-green-500 to-emerald-600', description: 'Beginner friendly' },
+    { value: 'medium' as Difficulty, label: 'Medium', icon: Flame, color: 'from-yellow-500 to-orange-600', description: 'Moderate challenge' },
+    { value: 'hard' as Difficulty, label: 'Hard', icon: Skull, color: 'from-red-500 to-rose-600', description: 'Expert level' },
+  ];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
@@ -71,23 +80,45 @@ export default function QuizHome({ onStartQuiz }: QuizHomeProps) {
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Difficulty Selection */}
+          <div className="space-y-3">
+            <h3 className="text-cyan-400 font-semibold text-center">Select Difficulty</h3>
+            <div className="grid grid-cols-3 gap-2">
+              {difficultyOptions.map(({ value, label, icon: Icon, color, description }) => (
+                <button
+                  key={value}
+                  onClick={() => setSelectedDifficulty(value)}
+                  className={`p-3 rounded-xl border-2 transition-all ${
+                    selectedDifficulty === value
+                      ? `border-transparent bg-gradient-to-br ${color} text-white`
+                      : 'border-slate-700 bg-slate-800/50 text-slate-300 hover:border-slate-600'
+                  }`}
+                >
+                  <Icon className="w-6 h-6 mx-auto mb-1" />
+                  <div className="text-sm font-semibold">{label}</div>
+                  <div className="text-xs opacity-75">{description}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="bg-slate-800/50 rounded-xl p-4 space-y-2">
             <h3 className="text-cyan-400 font-semibold">📋 Quiz Rules</h3>
             <ul className="text-slate-300 text-sm space-y-1">
-              <li>• 10 random questions from our question bank</li>
+              <li>• 10 random questions based on difficulty</li>
               <li>• Full-screen mode required during quiz</li>
               <li>• Cannot exit until quiz completion</li>
               <li>• Timer tracks your completion speed</li>
-              <li>• Score based on correct answers</li>
+              <li>• Score 75%+ to get a certificate!</li>
             </ul>
           </div>
 
           <Button
-            onClick={onStartQuiz}
+            onClick={() => onStartQuiz(selectedDifficulty)}
             className="w-full h-14 text-lg bg-gradient-to-r from-cyan-600 to-purple-600 hover:from-cyan-500 hover:to-purple-500 shadow-lg shadow-cyan-500/25"
           >
             <Play className="w-6 h-6 mr-2" />
-            Start Quiz
+            Start {selectedDifficulty.charAt(0).toUpperCase() + selectedDifficulty.slice(1)} Quiz
           </Button>
 
           <Button

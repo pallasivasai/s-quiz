@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { Shield, Clock, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
+import { Shield, Clock, AlertTriangle, CheckCircle, XCircle, Zap, Flame, Skull } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Question {
@@ -15,14 +15,18 @@ interface Question {
   option_c: string;
   option_d: string;
   correct_answer: string;
+  difficulty: string;
 }
 
+type Difficulty = 'easy' | 'medium' | 'hard';
+
 interface QuizScreenProps {
-  onComplete: (score: number, total: number, time: number) => void;
+  difficulty: Difficulty;
+  onComplete: (score: number, total: number, time: number, difficulty: Difficulty) => void;
   onExit: () => void;
 }
 
-export default function QuizScreen({ onComplete, onExit }: QuizScreenProps) {
+export default function QuizScreen({ difficulty, onComplete, onExit }: QuizScreenProps) {
   const { user } = useAuth();
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -35,12 +39,13 @@ export default function QuizScreen({ onComplete, onExit }: QuizScreenProps) {
   const [loading, setLoading] = useState(true);
   const [fullscreenWarning, setFullscreenWarning] = useState(false);
 
-  // Fetch random questions
+  // Fetch questions by difficulty
   useEffect(() => {
     const fetchQuestions = async () => {
       const { data, error } = await supabase
         .from('quiz_questions')
-        .select('*');
+        .select('*')
+        .eq('difficulty', difficulty);
       
       if (error) {
         toast.error('Failed to load questions');
@@ -54,7 +59,7 @@ export default function QuizScreen({ onComplete, onExit }: QuizScreenProps) {
     };
 
     fetchQuestions();
-  }, []);
+  }, [difficulty]);
 
   // Timer
   useEffect(() => {
@@ -141,7 +146,24 @@ export default function QuizScreen({ onComplete, onExit }: QuizScreenProps) {
     } else {
       // Quiz complete
       const finalTime = Math.floor((Date.now() - startTime) / 1000);
-      onComplete(score + (selectedAnswer === questions[currentIndex].correct_answer ? 1 : 0), questions.length, finalTime);
+      const finalScore = score + (selectedAnswer === questions[currentIndex].correct_answer ? 1 : 0);
+      onComplete(finalScore, questions.length, finalTime, difficulty);
+    }
+  };
+
+  const getDifficultyIcon = () => {
+    switch (difficulty) {
+      case 'easy': return <Zap className="w-5 h-5 text-green-400" />;
+      case 'medium': return <Flame className="w-5 h-5 text-yellow-400" />;
+      case 'hard': return <Skull className="w-5 h-5 text-red-400" />;
+    }
+  };
+
+  const getDifficultyColor = () => {
+    switch (difficulty) {
+      case 'easy': return 'text-green-400';
+      case 'medium': return 'text-yellow-400';
+      case 'hard': return 'text-red-400';
     }
   };
 
@@ -150,7 +172,7 @@ export default function QuizScreen({ onComplete, onExit }: QuizScreenProps) {
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
         <div className="text-center space-y-4">
           <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-cyan-500 mx-auto"></div>
-          <p className="text-cyan-400">Loading questions...</p>
+          <p className="text-cyan-400">Loading {difficulty} questions...</p>
         </div>
       </div>
     );
@@ -200,6 +222,10 @@ export default function QuizScreen({ onComplete, onExit }: QuizScreenProps) {
           <div className="flex items-center gap-3">
             <Shield className="w-8 h-8 text-cyan-400" />
             <span className="text-white font-bold text-xl">Cyber Quiz</span>
+            <div className={`flex items-center gap-1 px-2 py-1 rounded-full bg-slate-800/60 ${getDifficultyColor()}`}>
+              {getDifficultyIcon()}
+              <span className="text-sm font-medium capitalize">{difficulty}</span>
+            </div>
           </div>
           <div className="flex items-center gap-4">
             <div className="bg-slate-800/60 px-4 py-2 rounded-full flex items-center gap-2">
