@@ -15,6 +15,16 @@ interface LeaderboardEntry {
   username?: string;
 }
 
+interface CertificateData {
+  certificate_id: string;
+  username: string;
+  score: number;
+  total_questions: number;
+  percentage: number;
+  difficulty: 'easy' | 'medium' | 'hard';
+  issued_at: string;
+}
+
 interface LeaderboardProps {
   onBack: () => void;
 }
@@ -22,7 +32,7 @@ interface LeaderboardProps {
 export default function Leaderboard({ onBack }: LeaderboardProps) {
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedEntry, setSelectedEntry] = useState<LeaderboardEntry | null>(null);
+  const [selectedCertificate, setSelectedCertificate] = useState<CertificateData | null>(null);
 
   useEffect(() => {
     const fetchLeaderboard = async () => {
@@ -75,6 +85,29 @@ export default function Leaderboard({ onBack }: LeaderboardProps) {
   };
 
   const getPercentage = (score: number, total: number) => Math.round((score / total) * 100);
+
+  const handleViewCertificate = async (entry: LeaderboardEntry) => {
+    // Try to find existing certificate for this user
+    const { data: certificate } = await supabase
+      .from('certificates')
+      .select('*')
+      .eq('user_id', entry.user_id)
+      .order('issued_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (certificate) {
+      setSelectedCertificate({
+        certificate_id: certificate.certificate_id,
+        username: certificate.username,
+        score: certificate.score,
+        total_questions: certificate.total_questions,
+        percentage: certificate.percentage,
+        difficulty: certificate.difficulty as 'easy' | 'medium' | 'hard',
+        issued_at: certificate.issued_at
+      });
+    }
+  };
 
   return (
     <>
@@ -159,7 +192,7 @@ export default function Leaderboard({ onBack }: LeaderboardProps) {
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() => setSelectedEntry(entry)}
+                              onClick={() => handleViewCertificate(entry)}
                               className="text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 p-2"
                               title="View Certificate"
                             >
@@ -178,13 +211,15 @@ export default function Leaderboard({ onBack }: LeaderboardProps) {
       </div>
 
       {/* Certificate Modal */}
-      {selectedEntry && (
+      {selectedCertificate && (
         <Certificate
-          username={selectedEntry.username || 'Participant'}
-          score={selectedEntry.score}
-          totalQuestions={selectedEntry.total_questions}
-          completedAt={selectedEntry.completed_at}
-          onClose={() => setSelectedEntry(null)}
+          username={selectedCertificate.username}
+          score={selectedCertificate.score}
+          totalQuestions={selectedCertificate.total_questions}
+          completedAt={selectedCertificate.issued_at}
+          certificateId={selectedCertificate.certificate_id}
+          difficulty={selectedCertificate.difficulty}
+          onClose={() => setSelectedCertificate(null)}
         />
       )}
     </>

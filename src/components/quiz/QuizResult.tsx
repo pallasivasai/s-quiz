@@ -3,24 +3,28 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Trophy, Clock, Target, Home, RotateCcw, Star, Award } from 'lucide-react';
+import { Trophy, Clock, Target, Home, RotateCcw, Star, Award, Zap, Flame, Skull } from 'lucide-react';
 import { toast } from 'sonner';
 import confetti from 'canvas-confetti';
 import Certificate from './Certificate';
+
+type Difficulty = 'easy' | 'medium' | 'hard';
 
 interface QuizResultProps {
   score: number;
   totalQuestions: number;
   timeTaken: number;
+  difficulty: Difficulty;
   onHome: () => void;
   onRetry: () => void;
 }
 
-export default function QuizResult({ score, totalQuestions, timeTaken, onHome, onRetry }: QuizResultProps) {
+export default function QuizResult({ score, totalQuestions, timeTaken, difficulty, onHome, onRetry }: QuizResultProps) {
   const { user } = useAuth();
   const [saved, setSaved] = useState(false);
   const [username, setUsername] = useState('');
   const [showCertificate, setShowCertificate] = useState(false);
+  const [certificateId, setCertificateId] = useState<string | null>(null);
   const percentage = Math.round((score / totalQuestions) * 100);
 
   useEffect(() => {
@@ -78,6 +82,40 @@ export default function QuizResult({ score, totalQuestions, timeTaken, onHome, o
     }
   }, [user, score, totalQuestions, timeTaken, percentage, saved]);
 
+  // Save certificate to database when user views it
+  const handleGetCertificate = async () => {
+    if (!user || !username) return;
+
+    // Generate unique certificate ID
+    const newCertId = `CYBER-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+
+    // Save certificate to database
+    const { error } = await supabase
+      .from('certificates')
+      .insert({
+        user_id: user.id,
+        certificate_id: newCertId,
+        username: username,
+        score,
+        total_questions: totalQuestions,
+        percentage,
+        difficulty
+      });
+
+    if (error) {
+      // If duplicate, the certificate might already exist
+      if (error.code === '23505') {
+        toast.info('Certificate already issued for this attempt');
+      } else {
+        toast.error('Failed to save certificate');
+        return;
+      }
+    }
+
+    setCertificateId(newCertId);
+    setShowCertificate(true);
+  };
+
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -91,6 +129,14 @@ export default function QuizResult({ score, totalQuestions, timeTaken, onHome, o
     if (percentage >= 60) return { grade: 'C', color: 'text-yellow-400', message: 'Not bad! Keep learning about cyber security!' };
     if (percentage >= 50) return { grade: 'D', color: 'text-orange-400', message: 'You need more practice!' };
     return { grade: 'F', color: 'text-red-400', message: 'Time to brush up on cyber security basics!' };
+  };
+
+  const getDifficultyIcon = () => {
+    switch (difficulty) {
+      case 'easy': return <Zap className="w-5 h-5 text-green-400" />;
+      case 'medium': return <Flame className="w-5 h-5 text-yellow-400" />;
+      case 'hard': return <Skull className="w-5 h-5 text-red-400" />;
+    }
   };
 
   const gradeInfo = getGrade();
@@ -108,6 +154,10 @@ export default function QuizResult({ score, totalQuestions, timeTaken, onHome, o
             <CardTitle className="text-3xl font-bold text-white">
               Quiz Complete!
             </CardTitle>
+            <div className="flex items-center justify-center gap-2">
+              {getDifficultyIcon()}
+              <span className="text-slate-400 capitalize">{difficulty} Mode</span>
+            </div>
           </CardHeader>
           <CardContent className="space-y-6">
             {/* Grade */}
@@ -140,7 +190,7 @@ export default function QuizResult({ score, totalQuestions, timeTaken, onHome, o
             {/* Certificate Button - Only show if 75% or more */}
             {percentage >= 75 && (
               <Button
-                onClick={() => setShowCertificate(true)}
+                onClick={handleGetCertificate}
                 className="w-full h-12 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-slate-900 font-semibold"
               >
                 <Award className="w-5 h-5 mr-2" />
@@ -171,12 +221,14 @@ export default function QuizResult({ score, totalQuestions, timeTaken, onHome, o
       </div>
 
       {/* Certificate Modal */}
-      {showCertificate && (
+      {showCertificate && certificateId && (
         <Certificate
           username={username || 'Participant'}
           score={score}
           totalQuestions={totalQuestions}
           completedAt={new Date().toISOString()}
+          certificateId={certificateId}
+          difficulty={difficulty}
           onClose={() => setShowCertificate(false)}
         />
       )}
