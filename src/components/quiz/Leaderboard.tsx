@@ -33,6 +33,7 @@ export default function Leaderboard({ onBack }: LeaderboardProps) {
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCertificate, setSelectedCertificate] = useState<CertificateData | null>(null);
+  const [certifiedUserIds, setCertifiedUserIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const fetchLeaderboard = async () => {
@@ -55,6 +56,16 @@ export default function Leaderboard({ onBack }: LeaderboardProps) {
         .from('profiles')
         .select('user_id, username')
         .in('user_id', userIds);
+
+      // Fetch certificates to know who has one
+      const { data: certificates } = await supabase
+        .from('certificates')
+        .select('user_id')
+        .in('user_id', userIds);
+
+      if (certificates) {
+        setCertifiedUserIds(new Set(certificates.map(c => c.user_id)));
+      }
 
       // Map usernames to scores
       const entriesWithUsernames = scores.map(score => ({
@@ -148,7 +159,7 @@ export default function Leaderboard({ onBack }: LeaderboardProps) {
                 <div className="space-y-3">
                   {entries.map((entry, index) => {
                     const percentage = getPercentage(entry.score, entry.total_questions);
-                    const hasCertificate = percentage >= 75;
+                    const hasCertificate = certifiedUserIds.has(entry.user_id);
                     
                     return (
                       <div
