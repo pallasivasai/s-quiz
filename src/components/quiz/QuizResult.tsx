@@ -103,7 +103,6 @@ export default function QuizResult({ score, totalQuestions, timeTaken, difficult
       });
 
     if (error) {
-      // If duplicate, the certificate might already exist
       if (error.code === '23505') {
         toast.info('Certificate already issued for this attempt');
       } else {
@@ -114,6 +113,24 @@ export default function QuizResult({ score, totalQuestions, timeTaken, difficult
 
     setCertificateId(newCertId);
     setShowCertificate(true);
+
+    // Send congratulations email
+    try {
+      await supabase.functions.invoke('send-certificate-email', {
+        body: {
+          username,
+          score,
+          totalQuestions,
+          percentage,
+          difficulty,
+          certificateId: newCertId,
+        },
+      });
+      toast.success('Congratulations email sent! 🎉');
+    } catch {
+      // Email is optional, don't block on failure
+      console.log('Email sending skipped');
+    }
   };
 
   const formatTime = (seconds: number) => {
